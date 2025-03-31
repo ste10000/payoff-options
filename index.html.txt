@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafico del Payoff - Opzioni</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        .container { margin-bottom: 20px; }
+        button, input, label { margin: 5px; }
+        canvas { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>Grafico del Payoff - Opzioni</h2>
+
+    <!-- Selezione del tipo di opzioni -->
+    <div class="container">
+        <label><input type="checkbox" id="callLong" onchange="updateChart()"> Call Long</label>
+        <label><input type="checkbox" id="callShort" onchange="updateChart()"> Call Short</label>
+        <label><input type="checkbox" id="putLong" onchange="updateChart()"> Put Long</label>
+        <label><input type="checkbox" id="putShort" onchange="updateChart()"> Put Short</label>
+    </div>
+
+    <!-- Input per i parametri -->
+    <label>Strike Price: <input type="number" id="strikeInput" value="100"></label>
+    <label>Premio: <input type="number" id="premiumInput" value="10"></label>
+    <label>Posizione: <input type="number" id="positionInput" value="1"></label>
+
+    <!-- Grafico -->
+    <canvas id="payoffChart" width="600" height="400"></canvas>
+
+    <script>
+        let chart;
+
+        function calculatePayoff(x, type, strike, premium, position, sign) {
+            let payoff = 0;
+            if (type === "call") {
+                payoff = (Math.max(x - strike, 0) - premium) * sign;
+            } else if (type === "put") {
+                payoff = (Math.max(strike - x, 0) - premium) * sign;
+            }
+            return payoff * position;
+        }
+
+        function updateChart() {
+            let strike = parseFloat(document.getElementById("strikeInput").value);
+            let premium = parseFloat(document.getElementById("premiumInput").value);
+            let position = parseInt(document.getElementById("positionInput").value);
+
+            let xValues = [];
+            let datasets = [];
+
+            for (let x = 50; x <= 150; x += 1) {
+                xValues.push(x);
+            }
+
+            function addDataset(type, sign, color) {
+                let yValues = xValues.map(x => calculatePayoff(x, type, strike, premium, position, sign));
+                datasets.push({
+                    label: (sign === 1 ? "Long " : "Short ") + type.toUpperCase(),
+                    data: yValues,
+                    borderColor: color,
+                    borderWidth: 2,
+                    fill: false
+                });
+            }
+
+            if (document.getElementById("callLong").checked) addDataset("call", 1, "blue");
+            if (document.getElementById("callShort").checked) addDataset("call", -1, "red");
+            if (document.getElementById("putLong").checked) addDataset("put", 1, "green");
+            if (document.getElementById("putShort").checked) addDataset("put", -1, "orange");
+
+            let ctx = document.getElementById("payoffChart").getContext("2d");
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: xValues,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: "Prezzo del sottostante" } },
+                        y: { title: { display: true, text: "Payoff (€)" } }
+                    }
+                }
+            });
+        }
+
+        // Inizializza il grafico
+        updateChart();
+    </script>
+
+</body>
+</html>
