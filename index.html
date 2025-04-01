@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafico Payoff Opzioni</title>
+    <title>Payoff</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h2>Grafico Payoff Opzioni</h2>
+    <h2>Payoff</h2>
     <label for="strike">Strike:</label>
     <input type="number" id="strike" value="100"><br>
     
@@ -35,15 +35,13 @@
     <label for="expiration">Data di scadenza:</label>
     <input type="date" id="expiration"><br>
     
-    <button onclick="drawPayoff()">Genera Grafico</button>
-    
     <canvas id="payoffChart"></canvas>
     
     <script>
+        let chart;
         function drawPayoff() {
             const strike = parseFloat(document.getElementById('strike').value);
             const premium = parseFloat(document.getElementById('premium').value);
-            const marketPrice = parseFloat(document.getElementById('marketPrice').value);
             const quantity = parseInt(document.getElementById('quantity').value);
             const optionType = document.getElementById('optionType').value;
             const position = document.getElementById('position').value;
@@ -68,12 +66,15 @@
             }
             
             const ctx = document.getElementById('payoffChart').getContext('2d');
-            new Chart(ctx, {
+            if (chart) {
+                chart.destroy();
+            }
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: prices,
                     datasets: [{
-                        label: `Payoff ${optionType.toUpperCase()} (${position.toUpperCase()})`,
+                        label: "Payoff",
                         data: payoffs,
                         borderColor: optionType === "call" ? "blue" : "red",
                         fill: false,
@@ -88,6 +89,13 @@
                 }
             });
         }
+        
+        document.querySelectorAll('input, select').forEach(element => {
+            element.addEventListener('input', drawPayoff);
+        });
+        
+        drawPayoff();
     </script>
 </body>
 </html>
+
