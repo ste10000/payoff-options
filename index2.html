@@ -2,63 +2,109 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payoff - Versione 2 (con scadenza)</title>
+    <title>Simulatore di Payoff</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        table { border-collapse: collapse; margin-bottom: 1em; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f0f0f0; }
+        .container { max-width: 1000px; margin: auto; }
+    </style>
 </head>
 <body>
-    <div style="text-align: center;">
-        <a href="index.html">Versione 1</a> | <a href="index2.html">Versione 2</a>
-    </div>
-    <h2>Simulatore di Payoff (Versione 2 - con scadenza)</h2>
+<div class="container">
+    <h2>Simulatore di Payoff</h2>
+    <button onclick="addOption()">Aggiungi Opzione</button>
+    <table id="optionsTable">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Strike</th>
+                <th>Premio</th>
+                <th>Quantità</th>
+                <th>Posizione</th>
+                <th>Scadenza</th>
+                <th>Rimuovi</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <canvas id="payoffChart" height="100"></canvas>
+</div>
 
-    <label for="strike">Strike:</label>
-    <input type="number" id="strike" value="100"><br>
+<script>
+    let chart;
 
-    <label for="premium">Premio:</label>
-    <input type="number" id="premium" value="10"><br>
+    function addOption() {
+        const table = document.getElementById("optionsTable").getElementsByTagName('tbody')[0];
+        const row = table.insertRow();
 
-    <label for="marketPrice">Prezzo di mercato:</label>
-    <input type="number" id="marketPrice" value="100"><br>
+        const today = new Date().toISOString().split("T")[0];
 
-    <label for="quantity">Numero di opzioni:</label>
-    <input type="number" id="quantity" value="1"><br>
+        row.innerHTML = `
+            <td>
+                <select class="optionType">
+                    <option value="call">Call</option>
+                    <option value="put">Put</option>
+                </select>
+            </td>
+            <td><input type="number" class="strike" value="100"></td>
+            <td><input type="number" class="premium" value="10"></td>
+            <td><input type="number" class="quantity" value="1"></td>
+            <td>
+                <select class="position">
+                    <option value="long">Long</option>
+                    <option value="short">Short</option>
+                </select>
+            </td>
+            <td><input type="date" class="expiration" value="${today}"></td>
+            <td><button onclick="removeOption(this)">Rimuovi</button></td>
+        `;
 
-    <label for="optionType">Tipo di opzione:</label>
-    <select id="optionType">
-        <option value="call">Call</option>
-        <option value="put">Put</option>
-    </select><br>
+        row.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', drawPayoff);
+        });
 
-    <label for="position">Tipo di posizione:</label>
-    <select id="position">
-        <option value="long">Long</option>
-        <option value="short">Short</option>
-    </select><br>
+        drawPayoff(); // aggiorna subito
+    }
 
-    <label for="expiration">Data di scadenza:</label>
-    <input type="date" id="expiration"><br><br>
+    function removeOption(button) {
+        const row = button.parentNode.parentNode;
+        row.remove();
+        drawPayoff();
+    }
 
-    <canvas id="payoffChart"></canvas>
+    function drawPayoff() {
+        const table = document.getElementById("optionsTable").getElementsByTagName('tbody')[0];
+        const rows = Array.from(table.rows);
 
-    <script>
-        let chart;
-        function drawPayoff() {
-            const strike = parseFloat(document.getElementById('strike').value);
-            const premium = parseFloat(document.getElementById('premium').value);
-            const quantity = parseInt(document.getElementById('quantity').value);
-            const optionType = document.getElementById('optionType').value;
-            const position = document.getElementById('position').value;
-            const expiration = document.getElementById('expiration').value;
+        let prices = [];
+        let totalPayoff = [];
 
-            let prices = [];
-            let payoffs = [];
+        if (rows.length === 0) return;
 
-            for (let price = strike - 50; price <= strike + 50; price += 1) {
+        const minStrike = Math.min(...rows.map(row => parseFloat(row.querySelector('.strike').value)));
+        const maxStrike = Math.max(...rows.map(row => parseFloat(row.querySelector('.strike').value)));
+
+        for (let price = minStrike - 50; price <= maxStrike + 50; price += 1) {
+            prices.push(price);
+            totalPayoff.push(0);
+        }
+
+        rows.forEach(row => {
+            const type = row.querySelector('.optionType').value;
+            const strike = parseFloat(row.querySelector('.strike').value);
+            const premium = parseFloat(row.querySelector('.premium').value);
+            const quantity = parseInt(row.querySelector('.quantity').value);
+            const position = row.querySelector('.position').value;
+            const expiration = row.querySelector('.expiration').value; // 👈 qui la scadenza (non usata nel calcolo, ma disponibile)
+
+            prices.forEach((price, i) => {
                 let payoff = 0;
-                if (optionType === "call") {
+                if (type === "call") {
                     payoff = Math.max(price - strike, 0) - premium;
-                } else if (optionType === "put") {
+                } else if (type === "put") {
                     payoff = Math.max(strike - price, 0) - premium;
                 }
 
@@ -66,41 +112,36 @@
                     payoff = -payoff;
                 }
 
-                prices.push(price);
-                payoffs.push(payoff * quantity);
-            }
-
-            const ctx = document.getElementById('payoffChart').getContext('2d');
-            if (chart) {
-                chart.destroy();
-            }
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: prices,
-                    datasets: [{
-                        label: expiration ? `Payoff (Scadenza: ${expiration})` : "Payoff",
-                        data: payoffs,
-                        borderColor: optionType === "call" ? "blue" : "red",
-                        fill: false,
-                        tension: 0.1,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: { title: { display: true, text: "Prezzo dell'Asset" } },
-                        y: { title: { display: true, text: "Payoff" } }
-                    }
-                }
+                totalPayoff[i] += payoff * quantity;
             });
-        }
-
-        document.querySelectorAll('input, select').forEach(element => {
-            element.addEventListener('input', drawPayoff);
         });
 
-        drawPayoff();
-    </script>
+        const ctx = document.getElementById('payoffChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: prices,
+                datasets: [{
+                    label: "Payoff Totale",
+                    data: totalPayoff,
+                    borderColor: 'green',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: "Prezzo dell'Asset" } },
+                    y: { title: { display: true, text: "Payoff Totale" } }
+                }
+            }
+        });
+    }
+
+    addOption(); // Aggiunge una riga iniziale
+</script>
 </body>
 </html>
