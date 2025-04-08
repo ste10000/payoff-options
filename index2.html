@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payoff - Versione 1</title>
+    <title>Payoff - Versione 2 (con scadenza)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div style="text-align: center;">
         <a href="index.html">Versione 1</a> | <a href="index2.html">Versione 2</a>
     </div>
-    <h2>Simulatore di Payoff (Versione 1)</h2>
+    <h2>Simulatore di Payoff (Versione 2 - con scadenza)</h2>
 
     <label for="strike">Strike:</label>
     <input type="number" id="strike" value="100"><br>
@@ -36,6 +36,9 @@
         <option value="short">Short</option>
     </select><br>
 
+    <label for="expiration">Data di scadenza:</label>
+    <input type="date" id="expiration"><br><br>
+
     <canvas id="payoffChart"></canvas>
 
     <script>
@@ -46,6 +49,7 @@
             const quantity = parseInt(document.getElementById('quantity').value);
             const optionType = document.getElementById('optionType').value;
             const position = document.getElementById('position').value;
+            const expiration = document.getElementById('expiration').value;
 
             let prices = [];
             let payoffs = [];
@@ -75,10 +79,11 @@
                 data: {
                     labels: prices,
                     datasets: [{
-                        label: "Payoff",
+                        label: expiration ? `Payoff (Scadenza: ${expiration})` : "Payoff",
                         data: payoffs,
                         borderColor: optionType === "call" ? "blue" : "red",
                         fill: false,
+                        tension: 0.1,
                     }]
                 },
                 options: {
