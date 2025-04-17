@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulatore di Payoff</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        table { border-collapse: collapse; margin-bottom: 1em; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f0f0f0; }
+        .container { max-width: 1000px; margin: auto; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Simulatore di Payoff</h2>
+
+    <label for="refDate">Data di riferimento:</label>
+    <input type="date" id="refDate" value="">
+
+    <button onclick="addOption()">Aggiungi Opzione</button>
+    <table id="optionsTable">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Strike</th>
+                <th>Premio</th>
+                <th>Quantità</th>
+                <th>Posizione</th>
+                <th>Scadenza</th>
+                <th>Rimuovi</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <canvas id="payoffChart" height="100"></canvas>
+</div>
+
+<script>
+    let chart;
+
+    function addOption() {
+        const table = document.getElementById("optionsTable").getElementsByTagName('tbody')[0];
+        const row = table.insertRow();
+
+        const today = new Date().toISOString().split("T")[0];
+
+        row.innerHTML = `
+            <td>
+                <select class="optionType">
+                    <option value="call">Call</option>
+                    <option value="put">Put</option>
+                </select>
+            </td>
+            <td><input type="number" class="strike" value="100"></td>
+            <td><input type="number" class="premium" value="10"></td>
+            <td><input type="number" class="quantity" value="1"></td>
+            <td>
+                <select class="position">
+                    <option value="long">Long</option>
+                    <option value="short">Short</option>
+                </select>
+            </td>
+            <td><input type="date" class="expiration" value="${today}"></td>
+            <td><button onclick="removeOption(this)">Rimuovi</button></td>
+        `;
+
+        row.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', drawPayoff);
+        });
+
+        drawPayoff();
+    }
+
+    function removeOption(button) {
+        const row = button.parentNode.parentNode;
+        row.remove();
+        drawPayoff();
+    }
+
+    function drawPayoff() {
+        const table = document.getElementById("optionsTable").getElementsByTagName('tbody')[0];
+        const rows = Array.from(table.rows);
+        const refDate = new Date(document.getElementById("refDate").value);
+
+        let prices = [];
+        let totalPayoff = [];
+
+        if (rows.length === 0) return;
+
+        const minStrike = Math.min(...rows.map(row => parseFloat(row.querySelector('.strike').value)));
+        const maxStrike = Math.max(...rows.map(row => parseFloat(row.querySelector('.strike').value)));
+
+        for (let price = minStrike - 50; price <= maxStrike + 50; price += 1) {
+            prices.push(price);
+            totalPayoff.push(0);
+        }
+
+        let validOption = false;
+
+        rows.forEach(row => {
+            const type = row.querySelector('.optionType').value;
+            const strike = parseFloat(row.querySelector('.strike').value);
+            const premium = parseFloat(row.querySelector('.premium').value);
+            const quantity = parseInt(row.querySelector('.quantity').value);
+            const position = row.querySelector('.position').value;
+            const expiration = new Date(row.querySelector('.expiration').value);
+
+            // Salta opzioni scadute rispetto alla data di riferimento
+            if (expiration < refDate) return;
+
+            validOption = true;
+
+            prices.forEach((price, i) => {
+                let payoff = 0;
+                if (type === "call") {
+                    payoff = Math.max(price - strike, 0) - premium;
+                } else if (type === "put") {
+                    payoff = Math.max(strike - price, 0) - premium;
+                }
+
+                if (position === "short") {
+                    payoff = -payoff;
+                }
+
+                totalPayoff[i] += payoff * quantity;
+            });
+        });
+
+        if (!validOption) {
+            alert("Nessuna opzione valida alla data di riferimento selezionata.");
+        }
+
+        const ctx = document.getElementById('payoffChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: prices,
+                datasets: [{
+                    label: "Payoff Totale",
+                    data: totalPayoff,
+                    borderColor: 'green',
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: "Prezzo dell'Asset" } },
+                    y: { title: { display: true, text: "Payoff Totale" } }
+                }
+            }
+        });
+    }
+
+    // Imposta la data iniziale e l'evento listener
+    document.getElementById("refDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("refDate").addEventListener("input", drawPayoff);
+
+    addOption();
+</script>
+</body>
+</html>
